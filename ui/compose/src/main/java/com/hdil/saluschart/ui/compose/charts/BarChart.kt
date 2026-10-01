@@ -33,11 +33,14 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.hdil.saluschart.core.chart.ChartMark
 import com.hdil.saluschart.core.chart.ChartType
+import com.hdil.saluschart.core.chart.accessibility.BarChartAccessibility
 import com.hdil.saluschart.core.chart.InteractionType
 import com.hdil.saluschart.core.chart.chartDraw.ChartDraw
 import com.hdil.saluschart.core.chart.chartDraw.ChartTooltip
@@ -99,6 +102,9 @@ import com.hdil.saluschart.ui.theme.LocalSalusChartColors
  * @param legendPosition Where to place the legend relative to the chart.
  * @param legendLabel Text shown in the legend for this data series.
  * @param tooltipColor Background color of the tooltip bubble; defaults to [barColor].
+ * @param contentDescription Optional override for the spoken summary TalkBack announces when a
+ *   user focuses this chart. When null, a description is generated automatically from [data],
+ *   [title], and [unit] via [BarChartAccessibility.describe].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -139,6 +145,7 @@ fun BarChart(
     legendPosition: LegendPosition = LegendPosition.BOTTOM,
     legendLabel: String = "",
     tooltipColor: Color = Color.Unspecified,
+    contentDescription: String? = null,
 ) {
     if (data.isEmpty()) return
 
@@ -224,7 +231,14 @@ fun BarChart(
         maxOf(yAxisFixedWidth, with(density) { (longestTickPx + extraPx).toDp() })
     } else yAxisFixedWidth
 
-    Column(modifier = modifier.padding(contentPadding)) {
+    val effectiveContentDescription = contentDescription
+        ?: remember(data, title, unit) { BarChartAccessibility.describe(data, title, unit) }
+
+    Column(
+        modifier = modifier
+            .semantics { this.contentDescription = effectiveContentDescription }
+            .padding(contentPadding)
+    ) {
         if (showTitle) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
