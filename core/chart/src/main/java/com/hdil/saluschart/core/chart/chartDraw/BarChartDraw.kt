@@ -369,23 +369,38 @@ object BarChartDraw {
                 onBarClick?.invoke(index, tooltipText)
             }
 
-            // Per-bar TalkBack description, scoped to plain BarChart usage only (chartType == BAR).
-            // RangeBarChart/StackedBarChart share this same BarMarker but pass different mark
-            // shapes through `data` at this index (RangeChartMark's span, or StackedChartMark's
-            // total across multiple segment-layer calls), so a correct per-bar description for
-            // those needs chart-type-specific handling — left for a follow-up phase.
+            // Per-bar TalkBack description. StackedBarChart needs chart-type-specific handling
+            // (BarMarker is called once per segment layer, but `data[index]` is always the whole
+            // stack) — left for a follow-up phase. BarChart and RangeBarChart are both correct
+            // from `data[index]` directly, so both are handled here.
             //
-            // Gated on actualInteractive, not `!isTouchArea`: InteractionType.Bar.TOUCH_AREA
-            // renders two Box layers per bar (a non-interactive visual layer, then an invisible
-            // full-height touch strip on top that actually receives taps/TalkBack focus).
-            // actualInteractive correctly identifies whichever layer is the real interactive one
-            // in either mode, so semantics land on the Box TalkBack actually reaches instead of
-            // the occluded one underneath it.
-            if (chartType == ChartType.BAR && actualInteractive) {
-                (data.getOrNull(index) as? ChartMark)?.let { mark ->
-                    val description = BarChartAccessibility.describeBar(mark, index, dataSize, unit)
-                    barModifier = barModifier.semantics { this.contentDescription = description }
+            // Gated on `onBarClick != null`, not `actualInteractive`: that flag is only a
+            // reliable signal for "is this the Box TalkBack should actually reach" by coincidence
+            // for BarChart. InteractionType.Bar.TOUCH_AREA (and RangeBar's equivalent) render two
+            // Box layers per bar — a non-interactive visual layer, then an invisible full-height
+            // touch strip on top that actually receives taps/TalkBack focus — and
+            // `actualInteractive` happens to track that split correctly there. But
+            // RangeBarChart's own single-layer `InteractionType.RangeBar.BAR` mode hardcodes
+            // `interactive = false` even though it has a real `onBarClick` and is genuinely
+            // clickable (a pre-existing quirk in RangeBarChart, not something this change fixes).
+            // `onBarClick != null` is the actual ground truth — it's the same condition already
+            // driving this Box's own `.clickable(enabled = (onBarClick != null))` a few lines up —
+            // and is correct in every mode of both chart types.
+            val isReachableLayer = onBarClick != null
+            when (chartType) {
+                ChartType.BAR -> if (isReachableLayer) {
+                    (data.getOrNull(index) as? ChartMark)?.let { mark ->
+                        val description = BarChartAccessibility.describeBar(mark, index, dataSize, unit)
+                        barModifier = barModifier.semantics { this.contentDescription = description }
+                    }
                 }
+                ChartType.RANGE_BAR -> if (isReachableLayer) {
+                    (data.getOrNull(index) as? RangeChartMark)?.let { mark ->
+                        val description = BarChartAccessibility.describeRangeBar(mark, index, dataSize, unit)
+                        barModifier = barModifier.semantics { this.contentDescription = description }
+                    }
+                }
+                else -> Unit
             }
 
             Box(
