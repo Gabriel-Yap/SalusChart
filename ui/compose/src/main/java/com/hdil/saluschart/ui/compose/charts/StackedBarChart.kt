@@ -141,10 +141,24 @@ fun StackedBarChart(
 
     val chartType = ChartType.STACKED_BAR
 
-    // Transform ChartMark to StackedChartMark (memoized)
-    val stackedData = remember(data) {
+    // Transform ChartMark to StackedChartMark (memoized).
+    //
+    // Segments are relabeled with their [segmentLabels] category name *before* sorting by value,
+    // so each segment keeps its correct name regardless of where the sort puts it (segments are
+    // sorted independently per bar, so the same position can hold a different category from one
+    // bar to the next). Only `.label` is touched here — `StackedChartMark.label` (the bar's own
+    // x-axis label, e.g. the day) is derived separately from the *original* group order by
+    // `toStackedChartMarks`, so this doesn't affect it. When `segmentLabels` is empty/shorter
+    // than a group, untouched segments keep their original label (typically a duplicate of the
+    // bar's own label), and BarChartAccessibility.describeStackedBar falls back to positional
+    // "Segment N" for those, same as before this fix.
+    val stackedData = remember(data, segmentLabels) {
         data.toStackedChartMarks(
-            segmentOrdering = { group: List<ChartMark> -> group.sortedByDescending { it.y } }
+            segmentOrdering = { group: List<ChartMark> ->
+                group
+                    .mapIndexed { i, mark -> segmentLabels.getOrNull(i)?.let { mark.copy(label = it) } ?: mark }
+                    .sortedByDescending { it.y }
+            }
         )
     }
     val totals: List<Double> = remember(stackedData) { stackedData.map { it.y } }

@@ -54,8 +54,8 @@ object BarChartAccessibility {
      */
     fun describeBar(mark: ChartMark, index: Int, total: Int, unit: String = ""): String {
         val label = mark.label ?: formatValue(mark.x)
-        val position = if (total > 1) " Bar ${index + 1} of $total." else ""
-        return "$label, ${formatValue(mark.y)}${unitSuffix(unit)}.$position"
+        val position = if (total > 1) "Bar ${index + 1} of $total. " else ""
+        return "$position$label, ${formatValue(mark.y)}${unitSuffix(unit)}."
     }
 
     /**
@@ -102,13 +102,13 @@ object BarChartAccessibility {
      */
     fun describeRangeBar(mark: RangeChartMark, index: Int, total: Int, unit: String = ""): String {
         val label = mark.label ?: formatValue(mark.x)
-        val position = if (total > 1) " Bar ${index + 1} of $total." else ""
+        val position = if (total > 1) "Bar ${index + 1} of $total. " else ""
         val valuePart = if (mark.minPoint.y == mark.maxPoint.y) {
             "${formatValue(mark.maxPoint.y)}${unitSuffix(unit)}"
         } else {
             "${formatValue(mark.minPoint.y)} to ${formatValue(mark.maxPoint.y)}${unitSuffix(unit)}"
         }
-        return "$label, $valuePart.$position"
+        return "$position$label, $valuePart."
     }
 
     /**
@@ -148,7 +148,10 @@ object BarChartAccessibility {
      * knows where they are.
      *
      * Segment labels come from each segment [ChartMark]'s own `label`, falling back to
-     * "Segment N" (1-based) when absent.
+     * "Segment N" (1-based) when absent *or* when it's identical to [mark]'s own label — a
+     * common data-authoring mistake (labeling every segment with the bar's own category, e.g.
+     * the day, instead of each segment's distinct identity) that would otherwise announce the
+     * same word once per segment instead of anything meaningful.
      *
      * @param mark The bar's mark, with its segments in rendering order.
      * @param index Zero-based position of this bar within the chart.
@@ -157,20 +160,20 @@ object BarChartAccessibility {
      */
     fun describeStackedBar(mark: StackedChartMark, index: Int, total: Int, unit: String = ""): String {
         val label = mark.label ?: formatValue(mark.x)
-        val position = if (total > 1) " Bar ${index + 1} of $total." else ""
+        val position = if (total > 1) "Bar ${index + 1} of $total. " else ""
 
         val segmentsPart = if (mark.segments.isEmpty()) {
             "No segments."
         } else {
             val segmentText = mark.segments.mapIndexed { i, segment ->
-                val segmentLabel = segment.label ?: "Segment ${i + 1}"
+                val segmentLabel = segment.label?.takeIf { it != mark.label } ?: "Segment ${i + 1}"
                 "$segmentLabel ${formatValue(segment.y)}"
             }.joinToString(", ")
             "$segmentText${unitSuffix(unit)}."
         }
         val totalPart = "Total ${formatValue(mark.y)}${unitSuffix(unit)}."
 
-        return "$label. $segmentsPart $totalPart$position"
+        return "$position$label. $segmentsPart $totalPart"
     }
 
     private fun unitSuffix(unit: String): String = if (unit.isBlank()) "" else " $unit"

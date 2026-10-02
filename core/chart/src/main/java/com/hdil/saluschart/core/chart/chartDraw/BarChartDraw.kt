@@ -32,6 +32,7 @@ import com.hdil.saluschart.core.chart.BaseChartMark
 import com.hdil.saluschart.core.chart.ChartMark
 import com.hdil.saluschart.core.chart.ChartType
 import com.hdil.saluschart.core.chart.RangeChartMark
+import com.hdil.saluschart.core.chart.StackedChartMark
 import com.hdil.saluschart.core.chart.accessibility.BarChartAccessibility
 import com.hdil.saluschart.core.chart.chartMath.ChartMath
 import com.hdil.saluschart.core.chart.model.BarCornerRadiusFractions
@@ -369,10 +370,13 @@ object BarChartDraw {
                 onBarClick?.invoke(index, tooltipText)
             }
 
-            // Per-bar TalkBack description. StackedBarChart needs chart-type-specific handling
-            // (BarMarker is called once per segment layer, but `data[index]` is always the whole
-            // stack) — left for a follow-up phase. BarChart and RangeBarChart are both correct
-            // from `data[index]` directly, so both are handled here.
+            // Per-bar TalkBack description. All three bar-family chart types are handled below.
+            // StackedBarChart gets one composite description per whole bar, not per segment:
+            // `data[index]` is always the full StackedChartMark regardless of which of the
+            // (up to 4) BarMarker calls this is, since only the whole-bar touch overlay is ever
+            // actually interactive — the per-segment color bands (drawn in a separate, earlier
+            // BarMarker call per segment layer) never have an onBarClick and so are correctly
+            // excluded by the `isReachableLayer` gate below.
             //
             // Gated on `onBarClick != null`, not `actualInteractive`: that flag is only a
             // reliable signal for "is this the Box TalkBack should actually reach" by coincidence
@@ -397,6 +401,12 @@ object BarChartDraw {
                 ChartType.RANGE_BAR -> if (isReachableLayer) {
                     (data.getOrNull(index) as? RangeChartMark)?.let { mark ->
                         val description = BarChartAccessibility.describeRangeBar(mark, index, dataSize, unit)
+                        barModifier = barModifier.semantics { this.contentDescription = description }
+                    }
+                }
+                ChartType.STACKED_BAR -> if (isReachableLayer) {
+                    (data.getOrNull(index) as? StackedChartMark)?.let { mark ->
+                        val description = BarChartAccessibility.describeStackedBar(mark, index, dataSize, unit)
                         barModifier = barModifier.semantics { this.contentDescription = description }
                     }
                 }

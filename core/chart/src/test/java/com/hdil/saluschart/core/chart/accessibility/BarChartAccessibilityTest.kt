@@ -74,7 +74,7 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeBar(mark, index = 1, total = 7, unit = "steps")
 
-        assertEquals("Monday, 8,432 steps. Bar 2 of 7.", description)
+        assertEquals("Bar 2 of 7. Monday, 8,432 steps.", description)
     }
 
     @Test
@@ -92,7 +92,7 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeBar(mark, index = 2, total = 4)
 
-        assertEquals("2, 3.3. Bar 3 of 4.", description)
+        assertEquals("Bar 3 of 4. 2, 3.3.", description)
     }
 
     @Test
@@ -164,7 +164,7 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeRangeBar(mark, index = 2, total = 7, unit = "bpm")
 
-        assertEquals("Monday, 70 to 156 bpm. Bar 3 of 7.", description)
+        assertEquals("Bar 3 of 7. Monday, 70 to 156 bpm.", description)
     }
 
     @Test
@@ -173,7 +173,7 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeRangeBar(mark, index = 0, total = 5, unit = "kg")
 
-        assertEquals("Mon, 50 kg. Bar 1 of 5.", description)
+        assertEquals("Bar 1 of 5. Mon, 50 kg.", description)
     }
 
     @Test
@@ -191,7 +191,7 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeRangeBar(mark, index = 2, total = 4)
 
-        assertEquals("2, 30 to 33.3. Bar 3 of 4.", description)
+        assertEquals("Bar 3 of 4. 2, 30 to 33.3.", description)
     }
 
     @Test
@@ -269,7 +269,7 @@ class BarChartAccessibilityTest {
         val description = BarChartAccessibility.describeStackedBar(mark, index = 0, total = 7, unit = "kcal")
 
         assertEquals(
-            "Monday. Breakfast 320, Lunch 450, Dinner 380 kcal. Total 1,150 kcal. Bar 1 of 7.",
+            "Bar 1 of 7. Monday. Breakfast 320, Lunch 450, Dinner 380 kcal. Total 1,150 kcal.",
             description
         )
     }
@@ -287,7 +287,29 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeStackedBar(mark, index = 1, total = 3, unit = "g")
 
-        assertEquals("Tue. Segment 1 10, Known 20 g. Total 30 g. Bar 2 of 3.", description)
+        assertEquals("Bar 2 of 3. Tue. Segment 1 10, Known 20 g. Total 30 g.", description)
+    }
+
+    @Test
+    fun `describeStackedBar falls back to positional Segment N when a segment label duplicates the bar's own label`() {
+        // Mirrors SampleDataProvider.getNutritionStackedData(), where every segment is mistakenly
+        // labeled with the bar's own day instead of its distinct nutrient category.
+        val mark = StackedChartMark(
+            x = 0.0,
+            segments = listOf(
+                ChartMark(x = 0.0, y = 480.0, label = "월"),
+                ChartMark(x = 0.0, y = 450.0, label = "월"),
+                ChartMark(x = 0.0, y = 880.0, label = "월"),
+            ),
+            label = "월"
+        )
+
+        val description = BarChartAccessibility.describeStackedBar(mark, index = 0, total = 7, unit = "kcal")
+
+        assertEquals(
+            "Bar 1 of 7. 월. Segment 1 480, Segment 2 450, Segment 3 880 kcal. Total 1,810 kcal.",
+            description
+        )
     }
 
     @Test
@@ -305,6 +327,6 @@ class BarChartAccessibilityTest {
 
         val description = BarChartAccessibility.describeStackedBar(mark, index = 4, total = 5)
 
-        assertEquals("4. X 15. Total 15. Bar 5 of 5.", description)
+        assertEquals("Bar 5 of 5. 4. X 15. Total 15.", description)
     }
 }
