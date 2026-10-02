@@ -2,6 +2,7 @@ package com.hdil.saluschart.core.chart.accessibility
 
 import com.hdil.saluschart.core.chart.ChartMark
 import com.hdil.saluschart.core.chart.RangeChartMark
+import com.hdil.saluschart.core.chart.StackedChartMark
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -191,5 +192,119 @@ class BarChartAccessibilityTest {
         val description = BarChartAccessibility.describeRangeBar(mark, index = 2, total = 4)
 
         assertEquals("2, 30 to 33.3. Bar 3 of 4.", description)
+    }
+
+    @Test
+    fun `describeStackedChart summarizes title, count, range of totals, and most recent point`() {
+        val data = listOf(
+            StackedChartMark(x = 0.0, segments = listOf(ChartMark(x = 0.0, y = 320.0), ChartMark(x = 0.0, y = 450.0)), label = "Mon"),
+            StackedChartMark(x = 1.0, segments = listOf(ChartMark(x = 1.0, y = 500.0), ChartMark(x = 1.0, y = 600.0)), label = "Tue"),
+            StackedChartMark(x = 2.0, segments = listOf(ChartMark(x = 2.0, y = 400.0), ChartMark(x = 2.0, y = 380.0)), label = "Wed"),
+        )
+
+        val description = BarChartAccessibility.describeStackedChart(data, title = "Nutrition", unit = "kcal")
+
+        assertEquals(
+            "Nutrition stacked bar chart. 3 data points. Range: 770 to 1,100 kcal. Most recent: Wed, 780 kcal.",
+            description
+        )
+    }
+
+    @Test
+    fun `describeStackedChart omits title prefix when title is null or blank`() {
+        val data = listOf(StackedChartMark(x = 0.0, segments = listOf(ChartMark(x = 0.0, y = 5.0)), label = "Mon"))
+
+        assertEquals(
+            "Stacked bar chart. 1 data point. Value: 5. Most recent: Mon, 5.",
+            BarChartAccessibility.describeStackedChart(data, title = null)
+        )
+        assertEquals(
+            "Stacked bar chart. 1 data point. Value: 5. Most recent: Mon, 5.",
+            BarChartAccessibility.describeStackedChart(data, title = "  ")
+        )
+    }
+
+    @Test
+    fun `describeStackedChart uses Value phrasing when every total is equal`() {
+        val data = listOf(
+            StackedChartMark(x = 0.0, segments = listOf(ChartMark(x = 0.0, y = 5.0), ChartMark(x = 0.0, y = 5.0)), label = "Mon"),
+            StackedChartMark(x = 1.0, segments = listOf(ChartMark(x = 1.0, y = 4.0), ChartMark(x = 1.0, y = 6.0)), label = "Tue"),
+        )
+
+        val description = BarChartAccessibility.describeStackedChart(data, unit = "kg")
+
+        assertEquals("Stacked bar chart. 2 data points. Value: 10 kg. Most recent: Tue, 10 kg.", description)
+    }
+
+    @Test
+    fun `describeStackedChart falls back to x value when label is missing`() {
+        val data = listOf(StackedChartMark(x = 3.0, segments = listOf(ChartMark(x = 3.0, y = 7.5)), label = null))
+
+        val description = BarChartAccessibility.describeStackedChart(data)
+
+        assertEquals("Stacked bar chart. 1 data point. Value: 7.5. Most recent: 3, 7.5.", description)
+    }
+
+    @Test
+    fun `describeStackedChart returns no data message for empty input`() {
+        assertEquals("Stacked bar chart. No data.", BarChartAccessibility.describeStackedChart(emptyList()))
+        assertEquals(
+            "Nutrition stacked bar chart. No data.",
+            BarChartAccessibility.describeStackedChart(emptyList(), title = "Nutrition")
+        )
+    }
+
+    @Test
+    fun `describeStackedBar lists each labeled segment, the total, unit, and position`() {
+        val mark = StackedChartMark(
+            x = 0.0,
+            segments = listOf(
+                ChartMark(x = 0.0, y = 320.0, label = "Breakfast"),
+                ChartMark(x = 0.0, y = 450.0, label = "Lunch"),
+                ChartMark(x = 0.0, y = 380.0, label = "Dinner"),
+            ),
+            label = "Monday"
+        )
+
+        val description = BarChartAccessibility.describeStackedBar(mark, index = 0, total = 7, unit = "kcal")
+
+        assertEquals(
+            "Monday. Breakfast 320, Lunch 450, Dinner 380 kcal. Total 1,150 kcal. Bar 1 of 7.",
+            description
+        )
+    }
+
+    @Test
+    fun `describeStackedBar falls back to positional Segment N when a segment label is missing`() {
+        val mark = StackedChartMark(
+            x = 0.0,
+            segments = listOf(
+                ChartMark(x = 0.0, y = 10.0, label = null),
+                ChartMark(x = 0.0, y = 20.0, label = "Known"),
+            ),
+            label = "Tue"
+        )
+
+        val description = BarChartAccessibility.describeStackedBar(mark, index = 1, total = 3, unit = "g")
+
+        assertEquals("Tue. Segment 1 10, Known 20 g. Total 30 g. Bar 2 of 3.", description)
+    }
+
+    @Test
+    fun `describeStackedBar omits position when there is only one bar`() {
+        val mark = StackedChartMark(x = 0.0, segments = listOf(ChartMark(x = 0.0, y = 5.0, label = "A")), label = "Only")
+
+        val description = BarChartAccessibility.describeStackedBar(mark, index = 0, total = 1, unit = "kg")
+
+        assertEquals("Only. A 5 kg. Total 5 kg.", description)
+    }
+
+    @Test
+    fun `describeStackedBar falls back to x value when the bar label is missing`() {
+        val mark = StackedChartMark(x = 4.0, segments = listOf(ChartMark(x = 4.0, y = 15.0, label = "X")), label = null)
+
+        val description = BarChartAccessibility.describeStackedBar(mark, index = 4, total = 5)
+
+        assertEquals("4. X 15. Total 15. Bar 5 of 5.", description)
     }
 }

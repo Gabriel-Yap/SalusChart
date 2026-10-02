@@ -2,6 +2,7 @@ package com.hdil.saluschart.core.chart.accessibility
 
 import com.hdil.saluschart.core.chart.ChartMark
 import com.hdil.saluschart.core.chart.RangeChartMark
+import com.hdil.saluschart.core.chart.StackedChartMark
 import java.util.Locale
 
 /**
@@ -108,6 +109,68 @@ object BarChartAccessibility {
             "${formatValue(mark.minPoint.y)} to ${formatValue(mark.maxPoint.y)}${unitSuffix(unit)}"
         }
         return "$label, $valuePart.$position"
+    }
+
+    /**
+     * Summarizes an entire stacked bar chart's data as a single spoken description, using each
+     * bar's total (sum of its segments).
+     *
+     * @param data The chart's marks. An empty list yields a "no data" description.
+     * @param title Optional chart title; prefixed onto the description when present.
+     * @param unit Optional unit suffix appended to values (e.g. "kcal").
+     */
+    fun describeStackedChart(data: List<StackedChartMark>, title: String? = null, unit: String = ""): String {
+        val titlePart = if (!title.isNullOrBlank()) "$title stacked bar chart." else "Stacked bar chart."
+
+        if (data.isEmpty()) return "$titlePart No data."
+
+        val totals = data.map { it.y }
+        val minTotal = totals.min()
+        val maxTotal = totals.max()
+        val last = data.last()
+
+        val countPart = "${data.size} ${if (data.size == 1) "data point" else "data points"}."
+        val rangePart = if (minTotal == maxTotal) {
+            "Value: ${formatValue(maxTotal)}${unitSuffix(unit)}."
+        } else {
+            "Range: ${formatValue(minTotal)} to ${formatValue(maxTotal)}${unitSuffix(unit)}."
+        }
+        val recentLabel = last.label ?: formatValue(last.x)
+        val recentPart = "Most recent: $recentLabel, ${formatValue(last.y)}${unitSuffix(unit)}."
+
+        return "$titlePart $countPart $rangePart $recentPart"
+    }
+
+    /**
+     * Describes a single stacked bar for per-element navigation, as one composite description
+     * covering every segment (there is only one focusable touch target per bar in a stacked
+     * chart, unlike plain/range bars). Includes the bar's position in the sequence so a user
+     * knows where they are.
+     *
+     * Segment labels come from each segment [ChartMark]'s own `label`, falling back to
+     * "Segment N" (1-based) when absent.
+     *
+     * @param mark The bar's mark, with its segments in rendering order.
+     * @param index Zero-based position of this bar within the chart.
+     * @param total Total number of bars in the chart.
+     * @param unit Optional unit suffix appended to each segment value and the total.
+     */
+    fun describeStackedBar(mark: StackedChartMark, index: Int, total: Int, unit: String = ""): String {
+        val label = mark.label ?: formatValue(mark.x)
+        val position = if (total > 1) " Bar ${index + 1} of $total." else ""
+
+        val segmentsPart = if (mark.segments.isEmpty()) {
+            "No segments."
+        } else {
+            val segmentText = mark.segments.mapIndexed { i, segment ->
+                val segmentLabel = segment.label ?: "Segment ${i + 1}"
+                "$segmentLabel ${formatValue(segment.y)}"
+            }.joinToString(", ")
+            "$segmentText${unitSuffix(unit)}."
+        }
+        val totalPart = "Total ${formatValue(mark.y)}${unitSuffix(unit)}."
+
+        return "$label. $segmentsPart $totalPart$position"
     }
 
     private fun unitSuffix(unit: String): String = if (unit.isBlank()) "" else " $unit"
