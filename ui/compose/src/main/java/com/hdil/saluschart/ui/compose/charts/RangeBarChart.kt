@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -44,6 +46,7 @@ import com.hdil.saluschart.core.chart.ChartType
 import com.hdil.saluschart.core.chart.InteractionType
 import com.hdil.saluschart.core.chart.RangeChartMark
 import com.hdil.saluschart.core.chart.ReferenceLineSpec
+import com.hdil.saluschart.core.chart.accessibility.BarChartAccessibility
 import com.hdil.saluschart.core.chart.chartDraw.ChartDraw
 import com.hdil.saluschart.core.chart.chartDraw.ChartLegend
 import com.hdil.saluschart.core.chart.chartDraw.ChartTooltip
@@ -192,6 +195,9 @@ private fun resolveRangeBarAutoSizing(
  * @param legendItems Legend entries. When non-empty and [showLegend] is true, the legend is shown.
  * @param showLegend Whether to display the legend (requires [legendItems] to be non-empty).
  * @param legendPosition Position of the legend relative to the chart content.
+ * @param contentDescription Optional override for the spoken summary TalkBack announces when a
+ *   user focuses this chart. When null, a description is generated automatically from [data],
+ *   [title], and [unit] via [BarChartAccessibility.describeRangeChart].
  *
  * @throws IllegalArgumentException if both [windowSize] and [pageSize] are provided.
  */
@@ -231,6 +237,7 @@ fun RangeBarChart(
     showLegend: Boolean = true,
     legendPosition: LegendPosition = LegendPosition.BOTTOM,
     yAxisLabelFormatter: (Double) -> String = { ChartDraw.formatTickLabel(it.toFloat()) },
+    contentDescription: String? = null,
     ) {
     if (data.isEmpty()) return
 
@@ -319,6 +326,7 @@ fun RangeBarChart(
         legendItems = legendItems,
         showLegend = showLegend,
         legendPosition = legendPosition,
+        contentDescription = contentDescription,
         )
 }
 
@@ -363,6 +371,8 @@ fun RangeBarChart(
  * @param legendItems Legend entries shown when [showLegend] is true.
  * @param showLegend Whether to display the legend.
  * @param legendPosition Position of the legend relative to the chart.
+ * @param contentDescription Optional override for the spoken summary TalkBack announces when a
+ *   user focuses this chart. When null, a description is generated automatically.
  */
 @JvmName("RangeBarChartChartMarks")
 @Composable
@@ -402,6 +412,7 @@ fun RangeBarChart(
     showLegend: Boolean = true,
     legendPosition: LegendPosition = LegendPosition.BOTTOM,
     yAxisLabelFormatter: (Double) -> String = { ChartDraw.formatTickLabel(it.toFloat()) },
+    contentDescription: String? = null,
     ) {
     val rangeData = remember(data) {
         data.toRangeChartMarksByXGroup(
@@ -446,6 +457,7 @@ fun RangeBarChart(
         legendItems = legendItems,
         showLegend = showLegend,
         legendPosition = legendPosition,
+        contentDescription = contentDescription,
         )
 }
 
@@ -488,6 +500,7 @@ private fun RangeBarChartContent(
     showLegend: Boolean = true,
     legendPosition: LegendPosition = LegendPosition.BOTTOM,
     onExternalTooltipSpec: ((TooltipSpec?) -> Unit)? = null,
+    contentDescription: String? = null,
 ) {
     if (rangeData.isEmpty()) return
 
@@ -498,7 +511,14 @@ private fun RangeBarChartContent(
     val useExternalYAxis = isFixedYAxis || (showYAxisHighlight && showYAxis && referenceLines.isNotEmpty())
     val scrollState = rememberScrollState()
 
-    Column(modifier = modifier.padding(contentPadding)) {
+    val effectiveContentDescription = contentDescription
+        ?: remember(rangeData, title, unit) { BarChartAccessibility.describeRangeChart(rangeData, title, unit) }
+
+    Column(
+        modifier = modifier
+            .semantics { this.contentDescription = effectiveContentDescription }
+            .padding(contentPadding)
+    ) {
         if (showTitle) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
