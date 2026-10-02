@@ -21,14 +21,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawContext
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hdil.saluschart.core.chart.BaseChartMark
+import com.hdil.saluschart.core.chart.ChartMark
 import com.hdil.saluschart.core.chart.ChartType
 import com.hdil.saluschart.core.chart.RangeChartMark
+import com.hdil.saluschart.core.chart.accessibility.BarChartAccessibility
 import com.hdil.saluschart.core.chart.chartMath.ChartMath
 import com.hdil.saluschart.core.chart.model.BarCornerRadiusFractions
 
@@ -147,7 +151,8 @@ object BarChartDraw {
      * @param customTooltipText Optional per-index tooltip text override.
      * @param segmentIndex Segment index in stacked bars (currently used only as a parameter placeholder).
      * @param showLabel Whether to draw a simple value label inside the bar.
-     * @param unit Unit suffix (currently unused; kept for API stability).
+     * @param unit Unit suffix. Used in each bar's TalkBack description when [chartType] is
+     *   [ChartType.BAR] (see [BarChartAccessibility.describeBar]); unused otherwise.
      * @param barCornerRadiusFraction Uniform corner rounding as a fraction of bar width.
      * @param barCornerRadiusFractions Per-corner rounding fractions of bar width.
      * @param roundTopOnly If true, rounds top corners only when using [barCornerRadiusFraction].
@@ -362,6 +367,25 @@ object BarChartDraw {
                     clickedBarIndex = if (clickedBarIndex == index) null else index
                 }
                 onBarClick?.invoke(index, tooltipText)
+            }
+
+            // Per-bar TalkBack description, scoped to plain BarChart usage only (chartType == BAR).
+            // RangeBarChart/StackedBarChart share this same BarMarker but pass different mark
+            // shapes through `data` at this index (RangeChartMark's span, or StackedChartMark's
+            // total across multiple segment-layer calls), so a correct per-bar description for
+            // those needs chart-type-specific handling — left for a follow-up phase.
+            //
+            // Gated on actualInteractive, not `!isTouchArea`: InteractionType.Bar.TOUCH_AREA
+            // renders two Box layers per bar (a non-interactive visual layer, then an invisible
+            // full-height touch strip on top that actually receives taps/TalkBack focus).
+            // actualInteractive correctly identifies whichever layer is the real interactive one
+            // in either mode, so semantics land on the Box TalkBack actually reaches instead of
+            // the occluded one underneath it.
+            if (chartType == ChartType.BAR && actualInteractive) {
+                (data.getOrNull(index) as? ChartMark)?.let { mark ->
+                    val description = BarChartAccessibility.describeBar(mark, index, dataSize, unit)
+                    barModifier = barModifier.semantics { this.contentDescription = description }
+                }
             }
 
             Box(

@@ -386,7 +386,8 @@ fun BarChart(
                                     },
                                     chartType = chartType,
                                     isTouchArea = true,
-                                    showLabel = false
+                                    showLabel = false,
+                                    unit = unit,
                                 )
                             }
                         }
