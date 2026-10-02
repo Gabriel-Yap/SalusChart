@@ -14,9 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hdil.saluschart.core.chart.*
+import com.hdil.saluschart.core.chart.accessibility.BarChartAccessibility
 import com.hdil.saluschart.core.chart.chartDraw.ChartDraw
 import com.hdil.saluschart.core.chart.chartDraw.ChartLegend
 import com.hdil.saluschart.core.chart.chartDraw.LegendPosition
@@ -86,6 +89,9 @@ private fun ceilToStep(v: Double, step: Double): Double {
  * @param initialPageIndex Initial page index for paging mode; defaults to last page when null.
  * @param yAxisFixedWidth Width reserved for the Y-axis pane in scroll/page mode.
  * @param tooltipColor Color of the tooltip indicator dot.
+ * @param contentDescription Optional override for the spoken summary TalkBack announces when a
+ *   user focuses this chart. When null, a description is generated automatically from [data],
+ *   [title], and [unit] via [BarChartAccessibility.describeStackedChart].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -121,6 +127,7 @@ fun StackedBarChart(
     initialPageIndex: Int? = null,
     yAxisFixedWidth: Dp = 20.dp,
     tooltipColor: Color = Color.Unspecified,
+    contentDescription: String? = null,
 ) {
     if (data.isEmpty()) return
 
@@ -216,7 +223,14 @@ fun StackedBarChart(
 
     var chartMetrics by remember { mutableStateOf<ChartMath.ChartMetrics?>(null) }
 
-    Column(modifier = modifier.padding(contentPadding)) {
+    val effectiveContentDescription = contentDescription
+        ?: remember(stackedData, title, unit) { BarChartAccessibility.describeStackedChart(stackedData, title, unit) }
+
+    Column(
+        modifier = modifier
+            .semantics { this.contentDescription = effectiveContentDescription }
+            .padding(contentPadding)
+    ) {
         if (showTitle) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
